@@ -8,9 +8,6 @@ export interface User {
 
 @Injectable()
 export class UserService {
-  findAll() {
-    throw new Error('Method not implemented.');
-  }
   private users: User[] = [];
   private nextId: number = 1;
 
@@ -23,6 +20,11 @@ export class UserService {
     this.users.push(user);
     return user;
   }
+
+  findAll(): User[] {
+    return this.users;
+  }
+
   findOne(id: number): User | undefined {
     return this.users.find((user) => user.id === id);
   }
