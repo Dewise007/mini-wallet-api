@@ -3,7 +3,7 @@ import { Exclude } from 'class-transformer';
 import { OneToOne } from 'typeorm';
 import { Wallet } from '../../wallets/entities/wallet.entity';
 
-@Entity()
+@Entity('users')
 export class User {
   @PrimaryGeneratedColumn()
   id!: number;

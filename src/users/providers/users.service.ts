@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { User } from '../entities/user.entity';
 import { Wallet } from 'src/wallets/entities/wallet.entity';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class UserService {
@@ -16,22 +17,24 @@ export class UserService {
     private readonly usersRepository: Repository<User>,
     @InjectRepository(Wallet)
     private readonly walletsRepository: Repository<Wallet>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(dto: CreateUserDto): Promise<User> {
     try {
-      const user = this.usersRepository.create(dto);
-      const savedUser = await this.usersRepository.save(user);
+      return await this.dataSource.transaction(async (manager) => {
+        const user = manager.create(User, dto);  //1. create a new user 
+        const savedUser = await manager.save(user);
 
-      const wallet = this.walletsRepository.create({
-        user: savedUser,
-        balanceMinor: '0',
+        const wallet = manager.create(Wallet, { // 2. create a new wallet for the user
+          user: savedUser,
+          balanceMinor: '0',
+        });
+        await manager.save(wallet);
+
+        return savedUser;
       });
-
-      await this.walletsRepository.save(wallet);
-
-      return savedUser;
-    } catch (error: unknown) {
+    } catch (error) {
       const duplicateCodes = ['ER_DUP_ENTRY', '23505'];
       const databaseError = error as { code?: string };
 

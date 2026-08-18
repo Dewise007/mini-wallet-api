@@ -15,7 +15,7 @@ export class Wallet {
   @Column({ type: 'bigint', default: 0 })
   balanceMinor!: string;
 
-  @OneToOne(() => User)
+  @OneToOne(() => User, (user) => user.wallet)
   @JoinColumn()
   declare user: User;
 }
