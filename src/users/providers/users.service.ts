@@ -9,6 +9,7 @@ import { CreateUserDto } from '../dto/create-user.dto';
 import { User } from '../entities/user.entity';
 import { Wallet } from 'src/wallets/entities/wallet.entity';
 import { DataSource } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -23,10 +24,12 @@ export class UserService {
   async create(dto: CreateUserDto): Promise<User> {
     try {
       return await this.dataSource.transaction(async (manager) => {
-        const user = manager.create(User, dto);  //1. create a new user 
+        const hashedPassword = await bcrypt.hash(dto.password, 10);
+        const user = manager.create(User, { ...dto, password: hashedPassword });
         const savedUser = await manager.save(user);
 
-        const wallet = manager.create(Wallet, { // 2. create a new wallet for the user
+        const wallet = manager.create(Wallet, {
+          // 2. create a new wallet for the user
           user: savedUser,
           balanceMinor: '0',
         });
