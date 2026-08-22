@@ -4,9 +4,13 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { ClassSerializerInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.use(helmet());
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -16,7 +20,12 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  app.useGlobalInterceptors(
+    new ClassSerializerInterceptor(app.get(Reflector)),
+    new LoggingInterceptor(),
+  );
+
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   const config = new DocumentBuilder()
     .setTitle('MiniWallet API')
