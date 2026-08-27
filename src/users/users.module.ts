@@ -9,5 +9,6 @@ import { WalletsModule } from 'src/wallets/wallets.module';
   imports: [TypeOrmModule.forFeature([User]), WalletsModule],
   controllers: [UsersController],
   providers: [UserService],
+  exports: [UserService],
 })
 export class UsersModule {}

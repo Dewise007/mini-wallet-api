@@ -57,6 +57,23 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Authentication
+
+`GET /auth/me` is protected and requires the access token returned by login.
+
+```bash
+# Login first
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"your-email@example.com","password":"your-password"}'
+
+# Then use the accessToken from the login response
+curl http://localhost:3000/auth/me \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+In Postman, copy the login response's `accessToken` into the `Bearer Token` authorization field for the `/auth/me` request. A request without this header correctly returns `401 Unauthorized`.
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
