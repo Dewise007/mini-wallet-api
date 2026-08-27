@@ -1,41 +1,65 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateUserDto } from '../dto/create-user.dto';
-import { NotFoundException } from '@nestjs/common';
-import { Exclude } from 'class-transformer';
-
-export class User {
-  id!: number;
-  name!: string;
-  email!: string;
-
-  @Exclude()
-  password!: string;
-
-  constructor(partial: Partial<User>) {
-    Object.assign(this, partial);
-  }
-}
+import { User } from '../entities/user.entity';
+import { Wallet } from 'src/wallets/entities/wallet.entity';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class UserService {
-  private users: User[] = [];
-  private nextId: number = 1;
+  constructor(
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
+    @InjectRepository(Wallet)
+    private readonly walletsRepository: Repository<Wallet>,
+    private readonly dataSource: DataSource,
+  ) {}
 
-  create(dto: CreateUserDto): User {
-    const user = new User({ id: this.nextId++, ...dto });
-    this.users.push(user);
-    return user;
+  async create(dto: CreateUserDto): Promise<User> {
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const user = manager.create(User, dto);  //1. create a new user 
+        const savedUser = await manager.save(user);
+
+        const wallet = manager.create(Wallet, { // 2. create a new wallet for the user
+          user: savedUser,
+          balanceMinor: '0',
+        });
+        await manager.save(wallet);
+
+        return savedUser;
+      });
+    } catch (error) {
+      const duplicateCodes = ['ER_DUP_ENTRY', '23505'];
+      const databaseError = error as { code?: string };
+
+      if (databaseError.code && duplicateCodes.includes(databaseError.code)) {
+        throw new ConflictException('A user with this email already exists');
+      }
+
+      throw error;
+    }
   }
 
-  findAll(): User[] {
-    return this.users;
+  findAll(): Promise<User[]> {
+    return this.usersRepository.find({ relations: ['wallet'] });
   }
 
-  findOne(id: number): User {
-    const user = this.users.find((u) => u.id === id);
+  async findOne(id: number): Promise<User> {
+    const user = await this.usersRepository.findOne({
+      where: { id },
+      relations: ['wallet'],
+    });
+
     if (!user) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
+
     return user;
   }
 }
