@@ -74,6 +74,16 @@ curl http://localhost:3000/auth/me \
 
 In Postman, copy the login response's `accessToken` into the `Bearer Token` authorization field for the `/auth/me` request. A request without this header correctly returns `401 Unauthorized`.
 
+### Promote an admin
+
+Admin access is assigned outside the public API to prevent self-service admin registration. To promote an existing user, run:
+
+```bash
+npm run seed:admin -- your-email@example.com
+```
+
+Log in again after promotion to receive a new access token with the `admin` role. Tokens issued before promotion retain their existing `user` role until they expire.
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
