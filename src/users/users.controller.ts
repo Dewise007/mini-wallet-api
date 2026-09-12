@@ -27,6 +27,11 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @Get(':id/profile')
+  async getProfile(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.getProfile(id);
+  }
+
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.findOne(id);

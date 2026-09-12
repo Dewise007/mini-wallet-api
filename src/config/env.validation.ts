@@ -33,6 +33,16 @@ class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   JWT_EXPIRES_IN!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  REDIS_HOST!: string;
+
+  @IsNumberString()
+  REDIS_PORT!: string;
+
+  @IsNumberString()
+  REDIS_TTL!: string;
 }
 
 export function validate(config: Record<string, unknown>) {

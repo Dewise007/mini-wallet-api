@@ -2,7 +2,10 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from '../dto/create-user.dto';
@@ -19,6 +22,8 @@ export class UserService {
     @InjectRepository(Wallet)
     private readonly walletsRepository: Repository<Wallet>,
     private readonly dataSource: DataSource,
+    @Inject(CACHE_MANAGER)
+    private readonly cacheManager: Cache,
   ) {}
 
   async create(dto: CreateUserDto): Promise<User> {
@@ -64,5 +69,35 @@ export class UserService {
     }
 
     return user;
+  }
+
+  // Cacheable: profile info only — never includes the wallet/balance
+  async getProfile(id: number) {
+    const cacheKey = `user-profile:${id}`;
+    const cached = await this.cacheManager.get(cacheKey);
+
+    if (cached) {
+      console.log(`Cache HIT for ${cacheKey}`);
+      return cached;
+    }
+
+    console.log(`Cache MISS for ${cacheKey}`);
+
+    const user = await this.usersRepository.findOne({ where: { id } });
+
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    const profile = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+
+    await this.cacheManager.set(cacheKey, profile);
+
+    return profile;
   }
 }
