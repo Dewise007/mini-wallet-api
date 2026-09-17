@@ -1,5 +1,5 @@
 const TOKEN =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjE0LCJlbWFpbCI6ImNvbmN1cnJlbmN5QGV4YW1wbGUuY29tIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3ODg3NTQ1NjEsImV4cCI6MTc4ODc1NTQ2MX0.3wm6zBryIflPIhQcXJU_OWjzFlU8OILBmyX-Si_7NWs';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjE0LCJlbWFpbCI6ImNvbmN1cnJlbmN5QGV4YW1wbGUuY29tIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3ODk1MTcyODMsImV4cCI6MTc4OTUxODE4M30.hQ2j14N2NKRpVeAS2f1MQxRSmNR6pN_EADe58A7T1D4';
 const BASE_URL = 'http://localhost:3000';
 
 async function withdraw(amountMinor: number, idempotencyKey: string) {
