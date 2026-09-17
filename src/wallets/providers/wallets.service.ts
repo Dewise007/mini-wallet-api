@@ -4,12 +4,14 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { DataSource, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { Wallet } from '../entities/wallet.entity';
 import { Transaction } from '../entities/transaction.entity';
 import { User } from '../../users/entities/user.entity';
 import { DistributedLockService } from '../../redis/distributed-lock.service';
+import { MoneyMovedEvent } from '../events/money-moved.event';
 
 @Injectable()
 export class WalletsService {
@@ -22,6 +24,7 @@ export class WalletsService {
     private readonly usersRepository: Repository<User>,
     private readonly dataSource: DataSource,
     private readonly lockService: DistributedLockService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async getWalletByUserId(userId: number): Promise<Wallet> {
@@ -53,8 +56,7 @@ export class WalletsService {
   }
 
   async deposit(userId: number, amountMinor: number) {
-    return this.dataSource.transaction(async (manager) => {
-      // Look up the wallet id first (no lock needed yet), then lock by id directly
+    const result = await this.dataSource.transaction(async (manager) => {
       const walletRef = await manager.getRepository(Wallet).findOne({
         where: { user: { id: userId } },
         relations: ['user'],
@@ -90,8 +92,15 @@ export class WalletsService {
         }),
       );
 
-      return { balanceMinor: wallet.balanceMinor };
+      return { balanceMinor: wallet.balanceMinor, userId };
     });
+
+    this.eventEmitter.emit(
+      'wallet.money-moved',
+      new MoneyMovedEvent(userId, 'deposit', amountMinor),
+    );
+
+    return { balanceMinor: result.balanceMinor };
   }
 
   async withdraw(userId: number, amountMinor: number) {
@@ -103,7 +112,7 @@ export class WalletsService {
     }
 
     try {
-      return await this.dataSource.transaction(async (manager) => {
+      const result = await this.dataSource.transaction(async (manager) => {
         const walletRef = await manager.getRepository(Wallet).findOne({
           where: { user: { id: userId } },
           relations: ['user'],
@@ -115,7 +124,7 @@ export class WalletsService {
 
         const wallet = await manager.getRepository(Wallet).findOne({
           where: { id: walletRef.id },
-          lock: { mode: 'pessimistic_write' }, // SELECT ... FOR UPDATE
+          lock: { mode: 'pessimistic_write' },
         });
 
         if (!wallet) {
@@ -147,13 +156,20 @@ export class WalletsService {
 
         return { balanceMinor: wallet.balanceMinor };
       });
+
+      this.eventEmitter.emit(
+        'wallet.money-moved',
+        new MoneyMovedEvent(userId, 'withdraw', amountMinor),
+      );
+
+      return result;
     } finally {
       await this.lockService.release(lockKey, token);
     }
   }
 
   async transfer(fromUserId: number, toEmail: string, amountMinor: number) {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const fromWalletRef = await manager.getRepository(Wallet).findOne({
         where: { user: { id: fromUserId } },
         relations: ['user'],
@@ -184,7 +200,6 @@ export class WalletsService {
         throw new NotFoundException('Recipient wallet not found');
       }
 
-      // Lock both wallets in a consistent order (lower id first) to prevent deadlocks
       const [firstId, secondId] =
         fromWalletRef.id < toWalletRef.id
           ? [fromWalletRef.id, toWalletRef.id]
@@ -247,7 +262,19 @@ export class WalletsService {
         }),
       );
 
-      return { balanceMinor: fromWallet.balanceMinor };
+      return { balanceMinor: fromWallet.balanceMinor, toUserId: toUser.id };
     });
+
+    this.eventEmitter.emit(
+      'wallet.money-moved',
+      new MoneyMovedEvent(fromUserId, 'transfer_out', amountMinor),
+    );
+
+    this.eventEmitter.emit(
+      'wallet.money-moved',
+      new MoneyMovedEvent(result.toUserId, 'transfer_in', amountMinor),
+    );
+
+    return { balanceMinor: result.balanceMinor };
   }
 }
